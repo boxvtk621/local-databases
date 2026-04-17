@@ -1,0 +1,14 @@
+# Шаблон для официального образа nginx: envsubst подставляет ${QDRANT_API_KEY}.
+# Prometheus скрейпит /metrics; location / без суффикса давал 404 при proxy_pass .../metrics + URI.
+server {
+    listen 8080;
+    location /metrics {
+        proxy_pass http://qdrant:6333/metrics;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header api-key ${QDRANT_API_KEY};
+    }
+    location = / {
+        return 302 /metrics;
+    }
+}

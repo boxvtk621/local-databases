@@ -1,4 +1,4 @@
- # Переменные — из .env (шаблон: .env.example). СУБД: 5432, 27017, 6379, 9200, 6333; портал: PORTAL_HOST_PORT → http://db.local/ (hosts — README).
+ # Переменные — из .env (шаблон: .env.example). СУБД на хосте: 127.0.0.1:5432, :27017, :6379, :9200, :6333; Prometheus UI только за порталом /prometheus/; портал: PORTAL_HOST_PORT → http://db.local/ (hosts — README).
 networks:
   databases:
     name: databases_net
@@ -24,8 +24,11 @@ services:
       FEED_POSTGRES_USER: ${FEED_POSTGRES_USER:-datafeeder}
       FEED_POSTGRES_PASSWORD: ${FEED_POSTGRES_PASSWORD:-datafeeder}
       FEED_POSTGRES_DB: ${FEED_POSTGRES_DB:-datafeeder}
+      # Init: postgres/docker-entrypoint-initdb.d/03-prometheus-exporter.sh
+      POSTGRES_EXPORTER_USER: ${POSTGRES_EXPORTER_USER:-postgres_exporter}
+      POSTGRES_EXPORTER_PASSWORD: ${POSTGRES_EXPORTER_PASSWORD:-postgres_exporter}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro
@@ -64,6 +67,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O /dev/null http://127.0.0.1/misc/ping || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
 
   mongodb:
     image: mongo:7
@@ -74,7 +87,7 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-admin}
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo_data:/data/db
     healthcheck:
@@ -105,6 +118,17 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+    healthcheck:
+      # С base URL /mongo/ путь / даёт 404; /mongo/ защищён Basic (busybox wget без --password — заголовок).
+      test:
+        - CMD-SHELL
+        - >
+          B=$$(echo -n "$$ME_CONFIG_BASICAUTH_USERNAME:$$ME_CONFIG_BASICAUTH_PASSWORD" | base64 | tr -d '\n');
+          wget -q -O /dev/null --header="Authorization: Basic $$B" http://127.0.0.1:8081/mongo/ || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
@@ -117,7 +141,7 @@ services:
       - xpack.security.http.ssl.enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
     volumes:
       - es_data:/usr/share/elasticsearch/data
     mem_limit: 1g
@@ -219,7 +243,7 @@ services:
     networks:
       - databases
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     command:
       - valkey-server
       - --appendonly
@@ -273,6 +297,15 @@ services:
     depends_on:
       valkey:
         condition: service_healthy
+    healthcheck:
+      # При RI_PROXY_PATH UI на подпути; / даёт 404 (как mongo-express с /mongo/).
+      test:
+        - CMD-SHELL
+        - wget -q -O /dev/null http://127.0.0.1:5540$$RI_PROXY_PATH || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s
 
   qdrant:
     image: qdrant/qdrant:v1.13.4
@@ -282,12 +315,15 @@ services:
     environment:
       QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-qdrant_local}
     ports:
-      - "6333:6333"
+      - "127.0.0.1:6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
       test:
-        ["CMD", "/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/6333"]
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333 && printf \"GET /readyz HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\nConnection: close\\r\\n\\r\\n\" >&3 && head -1 <&3 | grep -q \"200\"'",
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -300,6 +336,176 @@ services:
     depends_on:
       fluentd:
         condition: service_healthy
+
+  # Создаёт роль postgres_exporter при существующем volume (initdb не запускается повторно).
+  postgres-exporter-bootstrap:
+    image: postgres:16-alpine
+    container_name: databases-postgres-exporter-bootstrap
+    networks:
+      - databases
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-postgres}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATABASE: ${POSTGRES_DB:-postgres}
+      POSTGRES_EXPORTER_USER: ${POSTGRES_EXPORTER_USER:-postgres_exporter}
+      POSTGRES_EXPORTER_PASSWORD: ${POSTGRES_EXPORTER_PASSWORD:-postgres_exporter}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    volumes:
+      - ./postgres/bootstrap-exporter-role.sh:/bootstrap-exporter-role.sh:ro
+    command: ["/bin/sh", "/bootstrap-exporter-role.sh"]
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: databases-postgres-exporter
+    networks:
+      - databases
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_EXPORTER_USER:-postgres_exporter}:${POSTGRES_EXPORTER_PASSWORD:-postgres_exporter}@postgres:5432/postgres?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres-exporter-bootstrap:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:9187/metrics >/dev/null",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.42.0
+    container_name: databases-mongodb-exporter
+    networks:
+      - databases
+    command:
+      - "--mongodb.uri=mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-admin}@mongodb:27017/admin?authSource=admin"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.66.0
+    container_name: databases-redis-exporter
+    networks:
+      - databases
+    command:
+      - "--redis.addr=valkey:6379"
+      - "--redis.user=${VALKEY_USER:-valkey}"
+      - "--redis.password=${VALKEY_PASSWORD:-valkey_local}"
+    depends_on:
+      valkey:
+        condition: service_healthy
+
+  elasticsearch-exporter:
+    image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.7.0
+    container_name: databases-elasticsearch-exporter
+    networks:
+      - databases
+    # В v1.7.0 флаг --es.uri не подхватывает ES_URI из env; без явного URI используется localhost:9200.
+    environment:
+      ES_USERNAME: elastic
+      ES_PASSWORD: ${ELASTIC_PASSWORD:-elastic_local}
+    command:
+      - --es.uri=http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:9114/metrics >/dev/null",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  qdrant-metrics-proxy:
+    image: nginx:1.27-alpine
+    container_name: databases-qdrant-metrics-proxy
+    networks:
+      - databases
+    environment:
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-qdrant_local}
+    volumes:
+      - ./observability/qdrant-metrics-proxy/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      qdrant:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: databases-prometheus
+    networks:
+      - databases
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+      # Путь должен совпадать с location /prometheus/ в nginx и с PROMETHEUS_PUBLIC_URL (ссылки в UI, API под префиксом).
+      - "--web.external-url=${PROMETHEUS_PUBLIC_URL:-http://db.local/prometheus/}"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      postgres-exporter:
+        condition: service_healthy
+      mongodb-exporter:
+        condition: service_started
+      redis-exporter:
+        condition: service_started
+      elasticsearch-exporter:
+        condition: service_healthy
+      qdrant-metrics-proxy:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:9090/prometheus/-/ready >/dev/null",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: databases-grafana
+    networks:
+      - databases
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SERVER_ROOT_URL: ${GRAFANA_PUBLIC_URL:-http://db.local/grafana}
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/etc/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf -o /dev/null http://127.0.0.1:3000/api/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   portal:
     image: nginx:1.27-alpine
@@ -314,13 +520,17 @@ services:
       - ./proxy/redisinsight.htpasswd:/etc/nginx/redisinsight.htpasswd:ro
     depends_on:
       pgadmin:
-        condition: service_started
+        condition: service_healthy
       mongo-express:
-        condition: service_started
+        condition: service_healthy
       kibana:
         condition: service_healthy
       redisinsight:
-        condition: service_started
+        condition: service_healthy
+      grafana:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
 
 volumes:
   postgres_data:
@@ -330,3 +540,5 @@ volumes:
   valkey_data:
   redisinsight_data:
   qdrant_data:
+  prometheus_data:
+  grafana_data:

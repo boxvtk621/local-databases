@@ -1,0 +1,41 @@
+# Prometheus — scrape экспортёров и Qdrant (через nginx-proxy с заголовком api-key).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # С --web.external-url=.../prometheus/ метрики процесса слушаются на /prometheus/metrics, не на /metrics.
+  - job_name: prometheus
+    metrics_path: /prometheus/metrics
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels:
+          instance: postgres
+
+  - job_name: mongodb
+    static_configs:
+      - targets: ["mongodb-exporter:9216"]
+        labels:
+          instance: mongodb
+
+  - job_name: redis
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+        labels:
+          instance: valkey
+
+  - job_name: elasticsearch
+    static_configs:
+      - targets: ["elasticsearch-exporter:9114"]
+        labels:
+          instance: elasticsearch
+
+  - job_name: qdrant
+    static_configs:
+      - targets: ["qdrant-metrics-proxy:8080"]
+        labels:
+          instance: qdrant

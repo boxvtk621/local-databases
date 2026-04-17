@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: local-databases
+    orgId: 1
+    folder: Local databases
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/dashboards
