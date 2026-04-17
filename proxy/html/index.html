@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Локальные базы данных — портал</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=JetBrains+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --font: "JetBrains Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      --radius-lg: 20px;
+      --radius-md: 12px;
+      --radius-sm: 999px;
+      --shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 18px 48px rgba(0, 0, 0, 0.28);
+      --shadow-hover: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 22px 56px rgba(0, 0, 0, 0.35);
+      --bg: #0b0f14;
+      --bg-elevated: rgba(22, 30, 42, 0.72);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #eef2f7;
+      --muted: #94a3b8;
+      --chip-bg: rgba(255, 255, 255, 0.06);
+      --hero-glow-1: rgba(59, 130, 246, 0.22);
+      --hero-glow-2: rgba(16, 185, 129, 0.14);
+      --hero-glow-3: rgba(245, 158, 11, 0.12);
+      --hero-glow-4: rgba(139, 92, 246, 0.14);
+      --hero-glow-5: rgba(220, 38, 38, 0.1);
+      --pg: #3b82f6;
+      --pg-soft: rgba(59, 130, 246, 0.18);
+      --mongo: #10b981;
+      --mongo-soft: rgba(16, 185, 129, 0.18);
+      --es: #f59e0b;
+      --es-soft: rgba(245, 158, 11, 0.18);
+      --qdrant: #a78bfa;
+      --qdrant-soft: rgba(139, 92, 246, 0.2);
+      --valkey: #ef4444;
+      --valkey-soft: rgba(220, 38, 38, 0.18);
+      /* Подсветка строк подключения / YAML */
+      --hl-scheme: #7dd3fc;
+      --hl-jdbc: #c4b5fd;
+      --hl-user: #fcd34d;
+      --hl-host: #86efac;
+      --hl-port: #93c5fd;
+      --hl-path: #fdba74;
+      --hl-delim: #94a3b8;
+      --hl-qkey: #f9a8d4;
+      --hl-qval: #e2e8f0;
+      --hl-yaml-key: #7dd3fc;
+      --hl-yaml-val: #cbd5e1;
+      --hl-yaml-bool: #fcd34d;
+      --hl-bg-host: rgba(134, 239, 172, 0.12);
+      --hl-bg-user: rgba(252, 211, 77, 0.12);
+      --hl-json-key: #a5b4fc;
+      --hl-json-string: #86efac;
+      --hl-json-number: #fcd34d;
+      --hl-json-keyword: #f472b6;
+      --hl-json-punct: #94a3b8;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f0f4fa;
+        --bg-elevated: rgba(255, 255, 255, 0.82);
+        --card-border: rgba(15, 23, 42, 0.08);
+        --text: #0f172a;
+        --muted: #64748b;
+        --chip-bg: rgba(15, 23, 42, 0.06);
+        --shadow: 0 1px 0 #fff inset, 0 12px 40px rgba(15, 23, 42, 0.08);
+        --shadow-hover: 0 1px 0 #fff inset, 0 18px 48px rgba(15, 23, 42, 0.12);
+        --hero-glow-1: rgba(59, 130, 246, 0.18);
+        --hero-glow-2: rgba(16, 185, 129, 0.12);
+        --hero-glow-3: rgba(245, 158, 11, 0.1);
+        --hero-glow-4: rgba(124, 58, 237, 0.12);
+        --hero-glow-5: rgba(220, 38, 38, 0.08);
+        --hl-scheme: #0369a1;
+        --hl-jdbc: #5b21b6;
+        --hl-user: #b45309;
+        --hl-host: #047857;
+        --hl-port: #1d4ed8;
+        --hl-path: #c2410c;
+        --hl-delim: #64748b;
+        --hl-qkey: #be185d;
+        --hl-qval: #334155;
+        --hl-yaml-key: #0369a1;
+        --hl-yaml-val: #475569;
+        --hl-yaml-bool: #b45309;
+        --hl-bg-host: rgba(16, 185, 129, 0.15);
+        --hl-bg-user: rgba(245, 158, 11, 0.18);
+        --hl-json-key: #4f46e5;
+        --hl-json-string: #047857;
+        --hl-json-number: #b45309;
+        --hl-json-keyword: #be185d;
+        --hl-json-punct: #64748b;
+      }
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.55;
+      color: var(--text);
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(900px 520px at 12% -8%, var(--hero-glow-1), transparent 55%),
+        radial-gradient(700px 420px at 88% 0%, var(--hero-glow-2), transparent 50%),
+        radial-gradient(600px 380px at 50% 100%, var(--hero-glow-3), transparent 45%),
+        radial-gradient(520px 320px at 0% 92%, var(--hero-glow-4), transparent 42%),
+        radial-gradient(480px 300px at 100% 88%, var(--hero-glow-5), transparent 40%);
+      background-attachment: fixed;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .wrap {
+      max-width: min(52rem, 100%);
+      margin: 0 auto;
+      padding: clamp(1.1rem, 3vw, 1.75rem) clamp(1rem, 2.5vw, 1.25rem) 2rem;
+    }
+
+    header.hero {
+      margin-bottom: clamp(1rem, 2.5vw, 1.5rem);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.7rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: var(--chip-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 0.6rem;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+    }
+
+    h1 {
+      margin: 0 0 0.35rem;
+      font-size: clamp(1.65rem, 4vw, 2.35rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+    }
+
+    .hero-lead {
+      margin: 0;
+      max-width: none;
+      font-size: 1.02rem;
+      color: var(--muted);
+    }
+
+    .card-stack {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(1rem, 2vw, 1.35rem);
+    }
+
+    .db-tabs {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(0.75rem, 1.5vw, 1rem);
+    }
+
+    .db-tablist-shell {
+      position: relative;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--card-border);
+      background: color-mix(in srgb, var(--chip-bg) 88%, transparent);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+      padding: 0.35rem;
+      overflow: hidden;
+    }
+
+    @supports not (backdrop-filter: blur(1px)) {
+      .db-tablist-shell {
+        background: var(--chip-bg);
+      }
+    }
+
+    .db-tablist {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 0.35rem;
+      padding: 0;
+      margin: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scroll-snap-type: x proximity;
+      scroll-padding-inline: 0.15rem;
+      mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 0.65rem,
+        #000 calc(100% - 0.65rem),
+        transparent
+      );
+      -webkit-mask-image: linear-gradient(
+        to right,
+        transparent,
+        #000 0.65rem,
+        #000 calc(100% - 0.65rem),
+        transparent
+      );
+    }
+
+    .db-tablist::-webkit-scrollbar {
+      height: 5px;
+    }
+
+    .db-tablist::-webkit-scrollbar-thumb {
+      background: color-mix(in srgb, var(--muted) 35%, transparent);
+      border-radius: 3px;
+    }
+
+    .db-tab {
+      --tab-accent: var(--muted);
+      flex: 0 0 auto;
+      scroll-snap-align: start;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font: inherit;
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      padding: 0.4rem 0.85rem 0.4rem 0.4rem;
+      border-radius: calc(var(--radius-md) - 2px);
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease,
+        opacity 0.2s ease;
+    }
+
+    .db-tab__icon {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      transition: box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .db-tab__icon svg {
+      display: block;
+    }
+
+    .db-tab--pg {
+      --tab-accent: var(--pg);
+    }
+
+    .db-tab--pg .db-tab__icon {
+      background: var(--pg-soft);
+      color: var(--pg);
+    }
+
+    .db-tab--mongo {
+      --tab-accent: var(--mongo);
+    }
+
+    .db-tab--mongo .db-tab__icon {
+      background: var(--mongo-soft);
+      color: var(--mongo);
+    }
+
+    .db-tab--es {
+      --tab-accent: var(--es);
+    }
+
+    .db-tab--es .db-tab__icon {
+      background: var(--es-soft);
+      color: var(--es);
+    }
+
+    .db-tab--qdrant {
+      --tab-accent: var(--qdrant);
+    }
+
+    .db-tab--qdrant .db-tab__icon {
+      background: var(--qdrant-soft);
+      color: var(--qdrant);
+    }
+
+    .db-tab--valkey {
+      --tab-accent: var(--valkey);
+    }
+
+    .db-tab--valkey .db-tab__icon {
+      background: var(--valkey-soft);
+      color: var(--valkey);
+    }
+
+    .db-tab:hover {
+      color: var(--text);
+      background: color-mix(in srgb, var(--chip-bg) 70%, transparent);
+      border-color: color-mix(in srgb, var(--card-border) 80%, var(--text));
+    }
+
+    .db-tab:hover .db-tab__icon {
+      opacity: 0.92;
+    }
+
+    .db-tab[aria-selected="true"] {
+      color: var(--text);
+      background: var(--bg-elevated);
+      border-color: color-mix(in srgb, var(--tab-accent) 42%, var(--card-border));
+      box-shadow:
+        inset 0 -2px 0 0 var(--tab-accent),
+        0 1px 0 rgba(255, 255, 255, 0.06) inset,
+        0 6px 18px color-mix(in srgb, var(--tab-accent) 12%, transparent);
+      transform: translateY(-1px);
+    }
+
+    .db-tab[aria-selected="true"] .db-tab__icon {
+      opacity: 1;
+      transform: scale(1.04);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--tab-accent) 22%, transparent);
+    }
+
+    .db-tab--pg:focus-visible {
+      outline: 2px solid var(--pg);
+      outline-offset: 2px;
+    }
+
+    .db-tab--mongo:focus-visible {
+      outline: 2px solid var(--mongo);
+      outline-offset: 2px;
+    }
+
+    .db-tab--es:focus-visible {
+      outline: 2px solid var(--es);
+      outline-offset: 2px;
+    }
+
+    .db-tab--qdrant:focus-visible {
+      outline: 2px solid var(--qdrant);
+      outline-offset: 2px;
+    }
+
+    .db-tab--valkey:focus-visible {
+      outline: 2px solid var(--valkey);
+      outline-offset: 2px;
+    }
+
+    .db-tabs__panels {
+      min-height: 0;
+    }
+
+    /* Атрибут hidden слабее author display:flex на article — иначе все карточки остаются в стопке */
+    .db-tabs__panels > article.card[hidden] {
+      display: none !important;
+    }
+
+    article.card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 1.1rem 1.15rem 1.05rem;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--card-border);
+      background: var(--bg-elevated);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      overflow: hidden;
+      transition: box-shadow 0.22s ease, border-color 0.22s ease, transform 0.22s ease;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      article.card:hover {
+        box-shadow: var(--shadow-hover);
+        transform: translateY(-3px);
+      }
+    }
+
+    article.card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+      opacity: 0.95;
+    }
+
+    article.card--pg::before {
+      background: linear-gradient(180deg, var(--pg), #1d4ed8);
+    }
+
+    article.card--mongo::before {
+      background: linear-gradient(180deg, var(--mongo), #047857);
+    }
+
+    article.card--es::before {
+      background: linear-gradient(180deg, var(--es), #d97706);
+    }
+
+    article.card--qdrant::before {
+      background: linear-gradient(180deg, var(--qdrant), #6d28d9);
+    }
+
+    article.card--valkey::before {
+      background: linear-gradient(180deg, var(--valkey), #b91c1c);
+    }
+
+    .card-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.65rem 1rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      flex: 1 1 12rem;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .icon-wrap {
+      flex-shrink: 0;
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      border: 1px solid var(--card-border);
+    }
+
+    article.card--pg .icon-wrap {
+      background: var(--pg-soft);
+      color: var(--pg);
+    }
+
+    article.card--mongo .icon-wrap {
+      background: var(--mongo-soft);
+      color: var(--mongo);
+    }
+
+    article.card--es .icon-wrap {
+      background: var(--es-soft);
+      color: var(--es);
+    }
+
+    article.card--qdrant .icon-wrap {
+      background: var(--qdrant-soft);
+      color: var(--qdrant);
+    }
+
+    article.card--valkey .icon-wrap {
+      background: var(--valkey-soft);
+      color: var(--valkey);
+    }
+
+    .icon-wrap svg {
+      display: block;
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .card-desc {
+      margin: 0.1rem 0 0;
+      font-size: 0.86rem;
+      color: var(--muted);
+      line-height: 1.42;
+    }
+
+    .card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+
+    .conn-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.6rem;
+      align-items: start;
+    }
+
+    @media (min-width: 640px) {
+      .conn-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.65rem 0.85rem;
+      }
+    }
+
+    .copy-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.2rem;
+    }
+
+    .copy-stack__segment {
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+
+    .copy-stack__segment--host {
+      flex: 0 0 auto;
+      min-height: auto;
+    }
+
+    .copy-stack__segment--host .copy-block {
+      flex: 0 1 auto;
+      box-sizing: border-box;
+      min-height: 3.25rem;
+    }
+
+    .copy-stack__segment--docker {
+      min-height: 0;
+    }
+
+    .copy-stack__segment--mcp {
+      flex: 0 0 auto;
+      padding-top: 0.55rem;
+      border-top: 1px dashed var(--card-border);
+    }
+
+    .mcp-hint {
+      margin: 0 0 0.4rem;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    .mcp-hint code {
+      font-family: var(--mono);
+      font-size: 0.88em;
+      padding: 0.06em 0.28em;
+      border-radius: 4px;
+      background: var(--chip-bg);
+      border: 1px solid var(--card-border);
+    }
+
+    pre.copy-block.copy-block--mcp-json {
+      max-height: 16rem;
+      overflow: auto;
+      font-size: 0.66rem;
+      line-height: 1.45;
+    }
+
+    pre.copy-block.copy-block--mcp-json code .hl-json-key {
+      color: var(--hl-json-key);
+      font-weight: 600;
+    }
+
+    pre.copy-block.copy-block--mcp-json code .hl-json-string {
+      color: var(--hl-json-string);
+    }
+
+    pre.copy-block.copy-block--mcp-json code .hl-json-number {
+      color: var(--hl-json-number);
+      font-weight: 500;
+    }
+
+    pre.copy-block.copy-block--mcp-json code .hl-json-keyword {
+      color: var(--hl-json-keyword);
+      font-weight: 600;
+    }
+
+    pre.copy-block.copy-block--mcp-json code .hl-json-punct {
+      color: var(--hl-json-punct);
+      font-weight: 500;
+    }
+
+    .copy-docker-shell {
+      flex: 0 1 auto;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      min-height: 0;
+    }
+
+    .copy-docker-shell > .copy-row {
+      flex: 0 1 auto;
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 0;
+    }
+
+    .copy-pair {
+      display: flex;
+      flex-direction: column;
+      flex: 0 1 auto;
+      gap: 0.45rem;
+      min-height: 0;
+    }
+
+    .copy-sublabel {
+      font-size: 0.62rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 0.15rem;
+    }
+
+    .copy-pair .copy-block {
+      box-sizing: border-box;
+      min-height: 3.35rem;
+    }
+
+    .copy-row {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      border-radius: var(--radius-md);
+      border: 1px dashed var(--card-border);
+      background: rgba(0, 0, 0, 0.12);
+      box-sizing: border-box;
+    }
+
+    .copy-row > .copy-block,
+    .copy-row > pre.copy-block {
+      border: none;
+      background: transparent;
+      border-radius: var(--radius-md);
+      padding: 0.45rem 2.35rem 0.45rem 0.55rem;
+      margin: 0;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 0.28rem;
+      right: 0.28rem;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.85rem;
+      height: 1.85rem;
+      padding: 0;
+      margin: 0;
+      border: none;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.22);
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+    }
+
+    .copy-btn__icon {
+      display: block;
+      pointer-events: none;
+    }
+
+    .copy-btn:hover:not(:disabled) {
+      background: rgba(0, 0, 0, 0.38);
+      color: var(--text);
+    }
+
+    .copy-btn:focus-visible {
+      outline: 2px solid var(--pg);
+      outline-offset: 1px;
+    }
+
+    .copy-btn:disabled {
+      opacity: 1;
+      cursor: default;
+      background: rgba(34, 197, 94, 0.18);
+      color: #4ade80;
+    }
+
+    .net-panel {
+      margin-top: clamp(0.9rem, 2vw, 1.25rem);
+      padding: 1rem 1.1rem;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--card-border);
+      background: var(--bg-elevated);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+    }
+
+    .net-panel h3 {
+      margin: 0 0 0.35rem;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .net-panel>p {
+      margin: 0 0 0.5rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .copy-block {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      line-height: 1.45;
+      padding: 0.45rem 0.55rem;
+      border-radius: var(--radius-md);
+      border: 1px dashed var(--card-border);
+      background: rgba(0, 0, 0, 0.12);
+      color: var(--text);
+      user-select: all;
+      cursor: text;
+      word-break: break-all;
+    }
+
+    .copy-block code,
+    .copy-block .hl {
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+    }
+
+    .hl-scheme {
+      color: var(--hl-scheme);
+      font-weight: 600;
+    }
+
+    .hl-jdbc {
+      color: var(--hl-jdbc);
+      font-weight: 600;
+    }
+
+    .hl-user {
+      color: var(--hl-user);
+      padding: 0.05em 0.2em;
+      border-radius: 4px;
+      background: var(--hl-bg-user);
+    }
+
+    .hl-host {
+      color: var(--hl-host);
+      font-weight: 600;
+      padding: 0.05em 0.2em;
+      border-radius: 4px;
+      background: var(--hl-bg-host);
+    }
+
+    .hl-port {
+      color: var(--hl-port);
+    }
+
+    .hl-path {
+      color: var(--hl-path);
+    }
+
+    .hl-delim {
+      color: var(--hl-delim);
+      opacity: 0.95;
+    }
+
+    .hl-qkey {
+      color: var(--hl-qkey);
+      font-weight: 500;
+    }
+
+    .hl-qval {
+      color: var(--hl-qval);
+    }
+
+    .hl-yaml-key {
+      color: var(--hl-yaml-key);
+      font-weight: 600;
+    }
+
+    .hl-yaml-bool {
+      color: var(--hl-yaml-bool);
+      font-weight: 600;
+    }
+
+    .hl-yaml-val {
+      color: var(--hl-yaml-val);
+    }
+
+    pre.copy-block code .hl-line {
+      display: block;
+      min-height: 1.35em;
+    }
+
+    pre.copy-block,
+    pre.copy-block code {
+      font-family: var(--mono);
+    }
+
+    pre.copy-block {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: normal;
+      overflow-wrap: anywhere;
+      overflow-x: auto;
+      tab-size: 2;
+      -moz-tab-size: 2;
+    }
+
+    pre.copy-block code {
+      display: block;
+      font-size: inherit;
+      color: inherit;
+      background: none;
+      padding: 0;
+      border: 0;
+    }
+
+    @media (prefers-color-scheme: light) {
+      .copy-block {
+        background: rgba(15, 23, 42, 0.04);
+      }
+
+      .copy-row {
+        background: rgba(15, 23, 42, 0.04);
+      }
+
+      .copy-row > .copy-block,
+      .copy-row > pre.copy-block {
+        background: transparent;
+      }
+
+      .copy-btn {
+        background: rgba(15, 23, 42, 0.08);
+        color: var(--muted);
+      }
+
+      .copy-btn:hover:not(:disabled) {
+        background: rgba(15, 23, 42, 0.14);
+      }
+
+      .copy-btn:disabled {
+        background: rgba(22, 163, 74, 0.15);
+        color: #15803d;
+      }
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.45rem;
+      flex: 0 1 auto;
+      margin: 0;
+      padding: 0;
+      width: auto;
+      max-width: 100%;
+    }
+
+    .actions .btn {
+      width: auto;
+      box-sizing: border-box;
+    }
+
+    .actions .btn-ghost {
+      min-width: 9rem;
+    }
+
+    @media (max-width: 639px) {
+      .card-head .actions {
+        flex-basis: 100%;
+        justify-content: stretch;
+      }
+
+      .card-head .actions .btn {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.5rem 0.95rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      transition: filter 0.18s ease, transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .btn-primary {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    article.card--pg .btn-primary {
+      background: linear-gradient(165deg, #60a5fa, #2563eb 55%, #1d4ed8);
+    }
+
+    article.card--mongo .btn-primary {
+      background: linear-gradient(165deg, #34d399, #059669 55%, #047857);
+    }
+
+    article.card--es .btn-primary {
+      background: linear-gradient(165deg, #fbbf24, #d97706 55%, #b45309);
+    }
+
+    article.card--qdrant .btn-primary {
+      background: linear-gradient(165deg, #c4b5fd, #7c3aed 55%, #5b21b6);
+    }
+
+    article.card--valkey .btn-primary {
+      background: linear-gradient(165deg, #f87171, #dc2626 55%, #991b1b);
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 3px;
+    }
+
+    .btn-ghost {
+      color: var(--muted);
+      background: transparent;
+      border-color: var(--card-border);
+      font-weight: 500;
+    }
+
+    .btn-ghost:hover {
+      color: var(--text);
+      border-color: rgba(148, 163, 184, 0.45);
+      background: var(--chip-bg);
+    }
+
+    .btn-ghost:focus-visible {
+      outline: 2px solid var(--pg);
+      outline-offset: 2px;
+    }
+
+    footer.site-footer {
+      margin-top: clamp(1.25rem, 3vw, 1.75rem);
+      padding-top: 1rem;
+      border-top: 1px solid var(--card-border);
+      font-size: 0.82rem;
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    footer.site-footer code {
+      font-family: var(--mono);
+      font-size: 0.78em;
+      padding: 0.12rem 0.35rem;
+      border-radius: 6px;
+      background: var(--chip-bg);
+      border: 1px solid var(--card-border);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      article.card,
+      .btn-primary,
+      .btn-ghost,
+      .copy-btn,
+      .db-tab,
+      .db-tab__icon {
+        transition: none;
+      }
+
+      .db-tab[aria-selected="true"] {
+        transform: none;
+      }
+
+      .db-tab[aria-selected="true"] .db-tab__icon {
+        transform: none;
+      }
+
+      @media (hover: hover) and (pointer: fine) {
+        article.card:hover {
+          transform: none;
+        }
+      }
+
+      .btn-primary:hover {
+        transform: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <p class="badge"><span class="badge-dot" aria-hidden="true"></span> Локальный стек</p>
+      <h1>Базы данных и админки</h1>
+      <p class="hero-lead">
+        Быстрые ссылки на админки и примеры строк подключения: с хоста (имя <strong>db.local</strong>) и из контейнеров
+        в сети <code style="font-family: var(--mono); font-size: 0.9em;">databases_net</code>. На вкладках — готовые
+        фрагменты для <strong>Cursor MCP</strong> (<code style="font-family: var(--mono); font-size: 0.9em;">~/.cursor/mcp.json</code>);
+        полный пример и <code style="font-family: var(--mono); font-size: 0.9em;">MCP_DOCKER</code> — в README репозитория.
+        Как включить домен и портал — там же.
+      </p>
+    </header>
+
+    <main>
+      <section class="db-tabs" aria-label="Сервисы баз данных">
+        <div class="db-tablist-shell">
+          <div class="db-tablist" role="tablist" aria-label="Выбор базы данных">
+            <button type="button" class="db-tab db-tab--pg" id="db-tab-pg" role="tab" aria-controls="db-panel-pg"
+              aria-selected="true" tabindex="0"><span class="db-tab__icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path fill="currentColor" d="M23.5594 14.7228a.5269.5269 0 0 0-.0563-.1191c-.139-.2632-.4768-.3418-1.0074-.2321-1.6533.3411-2.2935.1312-2.5256-.0191 1.342-2.0482 2.445-4.522 3.0411-6.8297.2714-1.0507.7982-3.5237.1222-4.7316a1.5641 1.5641 0 0 0-.1509-.235C21.6931.9086 19.8007.0248 17.5099.0005c-1.4947-.0158-2.7705.3461-3.1161.4794a9.449 9.449 0 0 0-.5159-.0816 8.044 8.044 0 0 0-1.3114-.1278c-1.1822-.0184-2.2038.2642-3.0498.8406-.8573-.3211-4.7888-1.645-7.2219.0788C.9359 2.1526.3086 3.8733.4302 6.3043c.0409.818.5069 3.334 1.2423 5.7436.4598 1.5065.9387 2.7019 1.4334 3.582.553.9942 1.1259 1.5933 1.7143 1.7895.4474.1491 1.1327.1441 1.8581-.7279.8012-.9635 1.5903-1.8258 1.9446-2.2069.4351.2355.9064.3625 1.39.3772a.0569.0569 0 0 0 .0004.0041 11.0312 11.0312 0 0 0-.2472.3054c-.3389.4302-.4094.5197-1.5002.7443-.3102.064-1.1344.2339-1.1464.8115-.0025.1224.0329.2309.0919.3268.2269.4231.9216.6097 1.015.6331 1.3345.3335 2.5044.092 3.3714-.6787-.017 2.231.0775 4.4174.3454 5.0874.2212.5529.7618 1.9045 2.4692 1.9043.2505 0 .5263-.0291.8296-.0941 1.7819-.3821 2.5557-1.1696 2.855-2.9059.1503-.8707.4016-2.8753.5388-4.1012.0169-.0703.0357-.1207.057-.1362.0007-.0005.0697-.0471.4272.0307a.3673.3673 0 0 0 .0443.0068l.2539.0223.0149.001c.8468.0384 1.9114-.1426 2.5312-.4308.6438-.2988 1.8057-1.0323 1.5951-1.6698zM2.371 11.8765c-.7435-2.4358-1.1779-4.8851-1.2123-5.5719-.1086-2.1714.4171-3.6829 1.5623-4.4927 1.8367-1.2986 4.8398-.5408 6.108-.13-.0032.0032-.0066.0061-.0098.0094-2.0238 2.044-1.9758 5.536-1.9708 5.7495-.0002.0823.0066.1989.0162.3593.0348.5873.0996 1.6804-.0735 2.9184-.1609 1.1504.1937 2.2764.9728 3.0892.0806.0841.1648.1631.2518.2374-.3468.3714-1.1004 1.1926-1.9025 2.1576-.5677.6825-.9597.5517-1.0886.5087-.3919-.1307-.813-.5871-1.2381-1.3223-.4796-.839-.9635-2.0317-1.4155-3.5126zm6.0072 5.0871c-.1711-.0428-.3271-.1132-.4322-.1772.0889-.0394.2374-.0902.4833-.1409 1.2833-.2641 1.4815-.4506 1.9143-1.0002.0992-.126.2116-.2687.3673-.4426a.3549.3549 0 0 0 .0737-.1298c.1708-.1513.2724-.1099.4369-.0417.156.0646.3078.26.3695.4752.0291.1016.0619.2945-.0452.4444-.9043 1.2658-2.2216 1.2494-3.1676 1.0128zm2.094-3.988-.0525.141c-.133.3566-.2567.6881-.3334 1.003-.6674-.0021-1.3168-.2872-1.8105-.8024-.6279-.6551-.9131-1.5664-.7825-2.5004.1828-1.3079.1153-2.4468.079-3.0586-.005-.0857-.0095-.1607-.0122-.2199.2957-.2621 1.6659-.9962 2.6429-.7724.4459.1022.7176.4057.8305.928.5846 2.7038.0774 3.8307-.3302 4.7363-.084.1866-.1633.3629-.2311.5454zm7.3637 4.5725c-.0169.1768-.0358.376-.0618.5959l-.146.4383a.3547.3547 0 0 0-.0182.1077c-.0059.4747-.054.6489-.115.8693-.0634.2292-.1353.4891-.1794 1.0575-.11 1.4143-.8782 2.2267-2.4172 2.5565-1.5155.3251-1.7843-.4968-2.0212-1.2217a6.5824 6.5824 0 0 0-.0769-.2266c-.2154-.5858-.1911-1.4119-.1574-2.5551.0165-.5612-.0249-1.9013-.3302-2.6462.0044-.2932.0106-.5909.019-.8918a.3529.3529 0 0 0-.0153-.1126 1.4927 1.4927 0 0 0-.0439-.208c-.1226-.4283-.4213-.7866-.7797-.9351-.1424-.059-.4038-.1672-.7178-.0869.067-.276.1831-.5875.309-.9249l.0529-.142c.0595-.16.134-.3257.213-.5012.4265-.9476 1.0106-2.2453.3766-5.1772-.2374-1.0981-1.0304-1.6343-2.2324-1.5098-.7207.0746-1.3799.3654-1.7088.5321a5.6716 5.6716 0 0 0-.1958.1041c.0918-1.1064.4386-3.1741 1.7357-4.4823a4.0306 4.0306 0 0 1 .3033-.276.3532.3532 0 0 0 .1447-.0644c.7524-.5706 1.6945-.8506 2.802-.8325.4091.0067.8017.0339 1.1742.081 1.939.3544 3.2439 1.4468 4.0359 2.3827.8143.9623 1.2552 1.9315 1.4312 2.4543-1.3232-.1346-2.2234.1268-2.6797.779-.9926 1.4189.543 4.1729 1.2811 5.4964.1353.2426.2522.4522.2889.5413.2403.5825.5515.9713.7787 1.2552.0696.087.1372.1714.1885.245-.4008.1155-1.1208.3825-1.0552 1.717-.0123.1563-.0423.4469-.0834.8148-.0461.2077-.0702.4603-.0994.7662zm.8905-1.6211c-.0405-.8316.2691-.9185.5967-1.0105a2.8566 2.8566 0 0 0 .135-.0406 1.202 1.202 0 0 0 .1342.103c.5703.3765 1.5823.4213 3.0068.1344-.2016.1769-.5189.3994-.9533.6011-.4098.1903-1.0957.333-1.7473.3636-.7197.0336-1.0859-.0807-1.1721-.151zm.5695-9.2712c-.0059.3508-.0542.6692-.1054 1.0017-.055.3576-.112.7274-.1264 1.1762-.0142.4368.0404.8909.0932 1.3301.1066.887.216 1.8003-.2075 2.7014a3.5272 3.5272 0 0 1-.1876-.3856c-.0527-.1276-.1669-.3326-.3251-.6162-.6156-1.1041-2.0574-3.6896-1.3193-4.7446.3795-.5427 1.3408-.5661 2.1781-.463zm.2284 7.0137a12.3762 12.3762 0 0 0-.0853-.1074l-.0355-.0444c.7262-1.1995.5842-2.3862.4578-3.4385-.0519-.4318-.1009-.8396-.0885-1.2226.0129-.4061.0666-.7543.1185-1.0911.0639-.415.1288-.8443.1109-1.3505.0134-.0531.0188-.1158.0118-.1902-.0457-.4855-.5999-1.938-1.7294-3.253-.6076-.7073-1.4896-1.4972-2.6889-2.0395.5251-.1066 1.2328-.2035 2.0244-.1859 2.0515.0456 3.6746.8135 4.8242 2.2824a.908.908 0 0 1 .0667.1002c.7231 1.3556-.2762 6.2751-2.9867 10.5405zm-8.8166-6.1162c-.025.1794-.3089.4225-.6211.4225a.5821.5821 0 0 1-.0809-.0056c-.1873-.026-.3765-.144-.5059-.3156-.0458-.0605-.1203-.178-.1055-.2844.0055-.0401.0261-.0985.0925-.1488.1182-.0894.3518-.1226.6096-.0867.3163.0441.6426.1938.6113.4186zm7.9305-.4114c.0111.0792-.049.201-.1531.3102-.0683.0717-.212.1961-.4079.2232a.5456.5456 0 0 1-.075.0052c-.2935 0-.5414-.2344-.5607-.3717-.024-.1765.2641-.3106.5611-.352.297-.0414.6111.0088.6356.1851z" />
+                </svg></span> PostgreSQL</button>
+            <button type="button" class="db-tab db-tab--mongo" id="db-tab-mongo" role="tab" aria-controls="db-panel-mongo"
+              aria-selected="false" tabindex="-1"><span class="db-tab__icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path fill="currentColor" d="M17.193 9.555c-1.264-5.58-4.252-7.414-4.573-8.115-.28-.394-.53-.954-.735-1.44-.036.495-.055.685-.523 1.184-.723.566-4.438 3.682-4.74 10.02-.282 5.912 4.27 9.435 4.888 9.884l.07.05A73.49 73.49 0 0111.91 24h.481c.114-1.032.284-2.056.51-3.07.417-.296.604-.463.85-.693a11.342 11.342 0 003.639-8.464c.01-.814-.103-1.662-.197-2.218zm-5.336 8.195s0-8.291.275-8.29c.213 0 .49 10.695.49 10.695-.381-.045-.765-1.76-.765-2.405z" />
+                </svg></span> MongoDB</button>
+            <button type="button" class="db-tab db-tab--es" id="db-tab-es" role="tab" aria-controls="db-panel-es"
+              aria-selected="false" tabindex="-1"><span class="db-tab__icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path fill="currentColor" d="M13.394 0C8.683 0 4.609 2.716 2.644 6.667h15.641a4.77 4.77 0 0 0 3.073-1.11c.446-.375.864-.785 1.247-1.243l.001-.002A11.974 11.974 0 0 0 13.394 0zM1.804 8.889a12.009 12.009 0 0 0 0 6.222h14.7a3.111 3.111 0 1 0 0-6.222zm.84 8.444C4.61 21.283 8.684 24 13.395 24c3.701 0 7.011-1.677 9.212-4.312l-.001-.002a9.958 9.958 0 0 0-1.247-1.243 4.77 4.77 0 0 0-3.073-1.11z" />
+                </svg></span> Elasticsearch</button>
+            <button type="button" class="db-tab db-tab--qdrant" role="tab" aria-controls="db-panel-qdrant"
+              aria-selected="false" tabindex="-1"><span class="db-tab__icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path fill="currentColor" d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2zm0 2.16L5.5 7.9v8.2L12 19.84l6.5-3.74V7.9L12 4.16zM9.5 8.5h5v1.75h-5V8.5zm0 3.25h5v1.75h-5v-1.75zm0 3.25h3.25V17H9.5v-2z" />
+                </svg></span> Qdrant</button>
+            <button type="button" class="db-tab db-tab--valkey" role="tab" aria-controls="db-panel-valkey"
+              aria-selected="false" tabindex="-1"><span class="db-tab__icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path fill="currentColor" d="M4 10.5c0-1.5 1.2-2.7 2.8-2.9V6.2C4.7 6.4 3 8.2 3 10.5 3 13.5 5.5 16 8.7 16h.3v-1.7h-.3c-2 0-3.7-1.7-3.7-3.8zm16 0c0 2.1-1.7 3.8-3.7 3.8h-.3V16h.3c3.2 0 5.7-2.5 5.7-5.5 0-2.3-1.7-4.1-3.8-4.3v1.4c1.6.2 2.8 1.4 2.8 2.9zM12 4c-2.8 0-5 2.1-5 4.7V14c0 2.6 2.2 4.7 5 4.7s5-2.1 5-4.7V8.7c0-2.6-2.2-4.7-5-4.7zm0 2c1.7 0 3 1.2 3 2.7V14c0 1.5-1.3 2.7-3 2.7s-3-1.2-3-2.7V8.7c0-1.5 1.3-2.7 3-2.7z" />
+                </svg></span> Valkey</button>
+          </div>
+        </div>
+        <div class="card-stack db-tabs__panels">
+        <article class="card card--pg" id="db-panel-pg" role="tabpanel" aria-labelledby="db-tab-pg">
+          <div class="card-head">
+            <div class="card-top">
+              <div class="icon-wrap" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path fill="currentColor" d="M23.5594 14.7228a.5269.5269 0 0 0-.0563-.1191c-.139-.2632-.4768-.3418-1.0074-.2321-1.6533.3411-2.2935.1312-2.5256-.0191 1.342-2.0482 2.445-4.522 3.0411-6.8297.2714-1.0507.7982-3.5237.1222-4.7316a1.5641 1.5641 0 0 0-.1509-.235C21.6931.9086 19.8007.0248 17.5099.0005c-1.4947-.0158-2.7705.3461-3.1161.4794a9.449 9.449 0 0 0-.5159-.0816 8.044 8.044 0 0 0-1.3114-.1278c-1.1822-.0184-2.2038.2642-3.0498.8406-.8573-.3211-4.7888-1.645-7.2219.0788C.9359 2.1526.3086 3.8733.4302 6.3043c.0409.818.5069 3.334 1.2423 5.7436.4598 1.5065.9387 2.7019 1.4334 3.582.553.9942 1.1259 1.5933 1.7143 1.7895.4474.1491 1.1327.1441 1.8581-.7279.8012-.9635 1.5903-1.8258 1.9446-2.2069.4351.2355.9064.3625 1.39.3772a.0569.0569 0 0 0 .0004.0041 11.0312 11.0312 0 0 0-.2472.3054c-.3389.4302-.4094.5197-1.5002.7443-.3102.064-1.1344.2339-1.1464.8115-.0025.1224.0329.2309.0919.3268.2269.4231.9216.6097 1.015.6331 1.3345.3335 2.5044.092 3.3714-.6787-.017 2.231.0775 4.4174.3454 5.0874.2212.5529.7618 1.9045 2.4692 1.9043.2505 0 .5263-.0291.8296-.0941 1.7819-.3821 2.5557-1.1696 2.855-2.9059.1503-.8707.4016-2.8753.5388-4.1012.0169-.0703.0357-.1207.057-.1362.0007-.0005.0697-.0471.4272.0307a.3673.3673 0 0 0 .0443.0068l.2539.0223.0149.001c.8468.0384 1.9114-.1426 2.5312-.4308.6438-.2988 1.8057-1.0323 1.5951-1.6698zM2.371 11.8765c-.7435-2.4358-1.1779-4.8851-1.2123-5.5719-.1086-2.1714.4171-3.6829 1.5623-4.4927 1.8367-1.2986 4.8398-.5408 6.108-.13-.0032.0032-.0066.0061-.0098.0094-2.0238 2.044-1.9758 5.536-1.9708 5.7495-.0002.0823.0066.1989.0162.3593.0348.5873.0996 1.6804-.0735 2.9184-.1609 1.1504.1937 2.2764.9728 3.0892.0806.0841.1648.1631.2518.2374-.3468.3714-1.1004 1.1926-1.9025 2.1576-.5677.6825-.9597.5517-1.0886.5087-.3919-.1307-.813-.5871-1.2381-1.3223-.4796-.839-.9635-2.0317-1.4155-3.5126zm6.0072 5.0871c-.1711-.0428-.3271-.1132-.4322-.1772.0889-.0394.2374-.0902.4833-.1409 1.2833-.2641 1.4815-.4506 1.9143-1.0002.0992-.126.2116-.2687.3673-.4426a.3549.3549 0 0 0 .0737-.1298c.1708-.1513.2724-.1099.4369-.0417.156.0646.3078.26.3695.4752.0291.1016.0619.2945-.0452.4444-.9043 1.2658-2.2216 1.2494-3.1676 1.0128zm2.094-3.988-.0525.141c-.133.3566-.2567.6881-.3334 1.003-.6674-.0021-1.3168-.2872-1.8105-.8024-.6279-.6551-.9131-1.5664-.7825-2.5004.1828-1.3079.1153-2.4468.079-3.0586-.005-.0857-.0095-.1607-.0122-.2199.2957-.2621 1.6659-.9962 2.6429-.7724.4459.1022.7176.4057.8305.928.5846 2.7038.0774 3.8307-.3302 4.7363-.084.1866-.1633.3629-.2311.5454zm7.3637 4.5725c-.0169.1768-.0358.376-.0618.5959l-.146.4383a.3547.3547 0 0 0-.0182.1077c-.0059.4747-.054.6489-.115.8693-.0634.2292-.1353.4891-.1794 1.0575-.11 1.4143-.8782 2.2267-2.4172 2.5565-1.5155.3251-1.7843-.4968-2.0212-1.2217a6.5824 6.5824 0 0 0-.0769-.2266c-.2154-.5858-.1911-1.4119-.1574-2.5551.0165-.5612-.0249-1.9013-.3302-2.6462.0044-.2932.0106-.5909.019-.8918a.3529.3529 0 0 0-.0153-.1126 1.4927 1.4927 0 0 0-.0439-.208c-.1226-.4283-.4213-.7866-.7797-.9351-.1424-.059-.4038-.1672-.7178-.0869.067-.276.1831-.5875.309-.9249l.0529-.142c.0595-.16.134-.3257.213-.5012.4265-.9476 1.0106-2.2453.3766-5.1772-.2374-1.0981-1.0304-1.6343-2.2324-1.5098-.7207.0746-1.3799.3654-1.7088.5321a5.6716 5.6716 0 0 0-.1958.1041c.0918-1.1064.4386-3.1741 1.7357-4.4823a4.0306 4.0306 0 0 1 .3033-.276.3532.3532 0 0 0 .1447-.0644c.7524-.5706 1.6945-.8506 2.802-.8325.4091.0067.8017.0339 1.1742.081 1.939.3544 3.2439 1.4468 4.0359 2.3827.8143.9623 1.2552 1.9315 1.4312 2.4543-1.3232-.1346-2.2234.1268-2.6797.779-.9926 1.4189.543 4.1729 1.2811 5.4964.1353.2426.2522.4522.2889.5413.2403.5825.5515.9713.7787 1.2552.0696.087.1372.1714.1885.245-.4008.1155-1.1208.3825-1.0552 1.717-.0123.1563-.0423.4469-.0834.8148-.0461.2077-.0702.4603-.0994.7662zm.8905-1.6211c-.0405-.8316.2691-.9185.5967-1.0105a2.8566 2.8566 0 0 0 .135-.0406 1.202 1.202 0 0 0 .1342.103c.5703.3765 1.5823.4213 3.0068.1344-.2016.1769-.5189.3994-.9533.6011-.4098.1903-1.0957.333-1.7473.3636-.7197.0336-1.0859-.0807-1.1721-.151zm.5695-9.2712c-.0059.3508-.0542.6692-.1054 1.0017-.055.3576-.112.7274-.1264 1.1762-.0142.4368.0404.8909.0932 1.3301.1066.887.216 1.8003-.2075 2.7014a3.5272 3.5272 0 0 1-.1876-.3856c-.0527-.1276-.1669-.3326-.3251-.6162-.6156-1.1041-2.0574-3.6896-1.3193-4.7446.3795-.5427 1.3408-.5661 2.1781-.463zm.2284 7.0137a12.3762 12.3762 0 0 0-.0853-.1074l-.0355-.0444c.7262-1.1995.5842-2.3862.4578-3.4385-.0519-.4318-.1009-.8396-.0885-1.2226.0129-.4061.0666-.7543.1185-1.0911.0639-.415.1288-.8443.1109-1.3505.0134-.0531.0188-.1158.0118-.1902-.0457-.4855-.5999-1.938-1.7294-3.253-.6076-.7073-1.4896-1.4972-2.6889-2.0395.5251-.1066 1.2328-.2035 2.0244-.1859 2.0515.0456 3.6746.8135 4.8242 2.2824a.908.908 0 0 1 .0667.1002c.7231 1.3556-.2762 6.2751-2.9867 10.5405zm-8.8166-6.1162c-.025.1794-.3089.4225-.6211.4225a.5821.5821 0 0 1-.0809-.0056c-.1873-.026-.3765-.144-.5059-.3156-.0458-.0605-.1203-.178-.1055-.2844.0055-.0401.0261-.0985.0925-.1488.1182-.0894.3518-.1226.6096-.0867.3163.0441.6426.1938.6113.4186zm7.9305-.4114c.0111.0792-.049.201-.1531.3102-.0683.0717-.212.1961-.4079.2232a.5456.5456 0 0 1-.075.0052c-.2935 0-.5414-.2344-.5607-.3717-.024-.1765.2641-.3106.5611-.352.297-.0414.6111.0088.6356.1851z" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="card-title">PostgreSQL</h2>
+                <p class="card-desc">Реляционная БД. Схемы и SQL — в pgAdmin.</p>
+              </div>
+            </div>
+            <div class="actions">
+              <a class="btn btn-primary" href="pgadmin/">Открыть pgAdmin</a>
+              <a class="btn btn-ghost" href="https://www.postgresql.org/docs/" rel="noopener noreferrer"
+                target="_blank">Документация</a>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="conn-grid">
+              <div class="copy-stack__segment copy-stack__segment--host">
+                <div class="copy-label">С хоста (db.local)</div>
+                <div class="copy-block">
+                  postgresql://postgres:postgres@db.local:5432/postgres</div>
+              </div>
+              <div class="copy-stack__segment copy-stack__segment--docker">
+                <div class="copy-label">Контейнер в сети databases_net</div>
+                <div class="copy-docker-shell">
+                  <div class="copy-pair">
+                    <div>
+                      <div class="copy-sublabel">URI</div>
+                      <div class="copy-block">
+                        postgresql://postgres:postgres@postgres:5432/postgres</div>
+                    </div>
+                    <div>
+                      <div class="copy-sublabel">JDBC</div>
+                      <div class="copy-block">
+                        jdbc:postgresql://postgres:5432/postgres?user=postgres&amp;password=postgres</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="copy-stack__segment copy-stack__segment--mcp">
+              <div class="copy-label">Cursor MCP (~/.cursor/mcp.json)</div>
+              <p class="mcp-hint">Вставьте внутрь <code>mcpServers</code>. Процесс MCP в Docker — в <code>DATABASE_URI</code>
+                указывается <strong>host.docker.internal</strong>, чтобы из контейнера MCP достучаться до порта на хосте.</p>
+              <pre class="copy-block copy-block--mcp-json"><code>"postgres-local": {
+  "command": "docker",
+  "args": [
+    "run", "-i", "--rm",
+    "--add-host=host.docker.internal:host-gateway",
+    "-e", "DATABASE_URI",
+    "crystaldba/postgres-mcp:latest",
+    "--access-mode=restricted"
+  ],
+  "env": {
+    "DATABASE_URI": "postgresql://postgres:postgres@host.docker.internal:5432/postgres"
+  }
+},</code></pre>
+            </div>
+          </div>
+        </article>
+
+        <article class="card card--mongo" id="db-panel-mongo" role="tabpanel" aria-labelledby="db-tab-mongo" hidden>
+          <div class="card-head">
+            <div class="card-top">
+              <div class="icon-wrap" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path fill="currentColor" d="M17.193 9.555c-1.264-5.58-4.252-7.414-4.573-8.115-.28-.394-.53-.954-.735-1.44-.036.495-.055.685-.523 1.184-.723.566-4.438 3.682-4.74 10.02-.282 5.912 4.27 9.435 4.888 9.884l.07.05A73.49 73.49 0 0111.91 24h.481c.114-1.032.284-2.056.51-3.07.417-.296.604-.463.85-.693a11.342 11.342 0 003.639-8.464c.01-.814-.103-1.662-.197-2.218zm-5.336 8.195s0-8.291.275-8.29c.213 0 .49 10.695.49 10.695-.381-.045-.765-1.76-.765-2.405z" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="card-title">MongoDB</h2>
+                <p class="card-desc">Документы и коллекции — в mongo-express.</p>
+              </div>
+            </div>
+            <div class="actions">
+              <a class="btn btn-primary" href="mongo/">Открыть mongo-express</a>
+              <a class="btn btn-ghost" href="https://www.mongodb.com/docs/" rel="noopener noreferrer"
+                target="_blank">Документация</a>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="conn-grid">
+              <div class="copy-stack__segment copy-stack__segment--host">
+                <div class="copy-label">С хоста (db.local)</div>
+                <div class="copy-block">
+                  mongodb://admin:admin@db.local:27017/?authSource=admin</div>
+              </div>
+              <div class="copy-stack__segment copy-stack__segment--docker">
+                <div class="copy-label">Контейнер в сети databases_net</div>
+                <div class="copy-docker-shell">
+                  <div class="copy-block">
+                    mongodb://admin:admin@mongodb:27017/?authSource=admin</div>
+                </div>
+              </div>
+            </div>
+            <div class="copy-stack__segment copy-stack__segment--mcp">
+              <div class="copy-label">Cursor MCP (~/.cursor/mcp.json)</div>
+              <p class="mcp-hint">Локально через <code>npx</code>; строка подключения как у <code>MONGODB_URI</code>
+                (можно <strong>127.0.0.1</strong> или <strong>db.local</strong>).</p>
+              <pre class="copy-block copy-block--mcp-json"><code>"mongodb": {
+  "command": "npx",
+  "args": ["-y", "mongodb-mcp-server"],
+  "env": {
+    "MDB_MCP_CONNECTION_STRING": "mongodb://admin:admin@127.0.0.1:27017/?authSource=admin",
+    "MDB_MCP_READ_ONLY": "true"
+  }
+},</code></pre>
+            </div>
+          </div>
+        </article>
+
+        <article class="card card--es" id="db-panel-es" role="tabpanel" aria-labelledby="db-tab-es" hidden>
+          <div class="card-head">
+            <div class="card-top">
+              <div class="icon-wrap" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path fill="currentColor" d="M13.394 0C8.683 0 4.609 2.716 2.644 6.667h15.641a4.77 4.77 0 0 0 3.073-1.11c.446-.375.864-.785 1.247-1.243l.001-.002A11.974 11.974 0 0 0 13.394 0zM1.804 8.889a12.009 12.009 0 0 0 0 6.222h14.7a3.111 3.111 0 1 0 0-6.222zm.84 8.444C4.61 21.283 8.684 24 13.395 24c3.701 0 7.011-1.677 9.212-4.312l-.001-.002a9.958 9.958 0 0 0-1.247-1.243 4.77 4.77 0 0 0-3.073-1.11z" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="card-title">Elasticsearch</h2>
+                <p class="card-desc">Поиск и индексы. Обзор — в Kibana.</p>
+              </div>
+            </div>
+            <div class="actions">
+              <a class="btn btn-primary" href="kibana/">Открыть Kibana</a>
+              <a class="btn btn-ghost" href="https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html"
+                rel="noopener noreferrer" target="_blank">Документация</a>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="conn-grid">
+              <div class="copy-stack__segment copy-stack__segment--host">
+                <div class="copy-label">С хоста (db.local)</div>
+                <div class="copy-block">
+                  http://elastic:elastic_local@db.local:9200</div>
+              </div>
+              <div class="copy-stack__segment copy-stack__segment--docker">
+                <div class="copy-label">Контейнер в сети databases_net</div>
+                <div class="copy-docker-shell">
+                  <div class="copy-block">
+                    http://elastic:elastic_local@elasticsearch:9200</div>
+                </div>
+              </div>
+            </div>
+            <div class="copy-stack__segment copy-stack__segment--mcp">
+              <div class="copy-label">Cursor MCP (~/.cursor/mcp.json)</div>
+              <p class="mcp-hint">MCP в Docker; в <code>ES_URL</code> — <strong>host.docker.internal</strong> (не
+                <code>127.0.0.1</code>: внутри контейнера MCP это другой localhost).</p>
+              <pre class="copy-block copy-block--mcp-json"><code>"elasticsearch-local": {
+  "command": "docker",
+  "args": [
+    "run", "-i", "--rm",
+    "--add-host=host.docker.internal:host-gateway",
+    "-e", "ES_URL", "-e", "ES_USERNAME", "-e", "ES_PASSWORD",
+    "docker.elastic.co/mcp/elasticsearch:latest",
+    "stdio"
+  ],
+  "env": {
+    "ES_URL": "http://host.docker.internal:9200",
+    "ES_USERNAME": "elastic",
+    "ES_PASSWORD": "elastic_local"
+  }
+},</code></pre>
+            </div>
+          </div>
+        </article>
+
+        <article class="card card--qdrant" id="db-panel-qdrant" role="tabpanel" aria-labelledby="db-tab-qdrant" hidden>
+          <div class="card-head">
+            <div class="card-top">
+              <div class="icon-wrap" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path fill="currentColor" d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2zm0 2.16L5.5 7.9v8.2L12 19.84l6.5-3.74V7.9L12 4.16zM9.5 8.5h5v1.75h-5V8.5zm0 3.25h5v1.75h-5v-1.75zm0 3.25h3.25V17H9.5v-2z" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="card-title">Qdrant</h2>
+                <p class="card-desc">Векторный поиск и коллекции. API-ключ и веб-консоль на порту 6333.</p>
+              </div>
+            </div>
+            <div class="actions">
+              <a class="btn btn-primary" href="http://db.local:6333/dashboard" rel="noopener noreferrer">Открыть
+                Dashboard</a>
+              <a class="btn btn-ghost" href="https://qdrant.tech/documentation/" rel="noopener noreferrer"
+                target="_blank">Документация</a>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="conn-grid">
+              <div class="copy-stack__segment copy-stack__segment--host">
+                <div class="copy-label">С хоста (db.local)</div>
+                <div class="copy-docker-shell">
+                  <div class="copy-pair">
+                    <div>
+                      <div class="copy-sublabel">Базовый URL</div>
+                      <div class="copy-block">
+                        http://db.local:6333</div>
+                    </div>
+                    <div>
+                      <div class="copy-sublabel">API-ключ (заголовок api-key)</div>
+                      <div class="copy-block">
+                        qdrant_local</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="copy-stack__segment copy-stack__segment--docker">
+                <div class="copy-label">Контейнер в сети databases_net</div>
+                <div class="copy-docker-shell">
+                  <div class="copy-pair">
+                    <div>
+                      <div class="copy-sublabel">Базовый URL</div>
+                      <div class="copy-block">
+                        http://qdrant:6333</div>
+                    </div>
+                    <div>
+                      <div class="copy-sublabel">API-ключ</div>
+                      <div class="copy-block">
+                        qdrant_local</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="copy-stack__segment copy-stack__segment--mcp">
+              <div class="copy-label">Cursor MCP (~/.cursor/mcp.json)</div>
+              <p class="mcp-hint">MCP в Docker через <code>uvx mcp-server-qdrant</code>; первый запуск может быть долгим
+                (зависимости и эмбеддинги). Том <code>cursor-qdrant-mcp-cache</code> в примере кэширует загрузки.</p>
+              <pre class="copy-block copy-block--mcp-json"><code>"qdrant-local": {
+  "command": "docker",
+  "args": [
+    "run", "-i", "--rm",
+    "--add-host=host.docker.internal:host-gateway",
+    "-v", "cursor-qdrant-mcp-cache:/root/.cache",
+    "-e", "QDRANT_URL", "-e", "QDRANT_API_KEY", "-e", "COLLECTION_NAME",
+    "-e", "HF_HOME=/root/.cache/huggingface",
+    "-e", "UV_CACHE_DIR=/root/.cache/uv",
+    "ghcr.io/astral-sh/uv:python3.12-bookworm-slim",
+    "uvx", "mcp-server-qdrant"
+  ],
+  "env": {
+    "QDRANT_URL": "http://host.docker.internal:6333",
+    "QDRANT_API_KEY": "qdrant_local",
+    "COLLECTION_NAME": "mcp-local"
+  }
+},</code></pre>
+            </div>
+          </div>
+        </article>
+
+        <article class="card card--valkey" id="db-panel-valkey" role="tabpanel" aria-labelledby="db-tab-valkey" hidden>
+          <div class="card-head">
+            <div class="card-top">
+              <div class="icon-wrap" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path fill="currentColor" d="M4 10.5c0-1.5 1.2-2.7 2.8-2.9V6.2C4.7 6.4 3 8.2 3 10.5 3 13.5 5.5 16 8.7 16h.3v-1.7h-.3c-2 0-3.7-1.7-3.7-3.8zm16 0c0 2.1-1.7 3.8-3.7 3.8h-.3V16h.3c3.2 0 5.7-2.5 5.7-5.5 0-2.3-1.7-4.1-3.8-4.3v1.4c1.6.2 2.8 1.4 2.8 2.9zM12 4c-2.8 0-5 2.1-5 4.7V14c0 2.6 2.2 4.7 5 4.7s5-2.1 5-4.7V8.7c0-2.6-2.2-4.7-5-4.7zm0 2c1.7 0 3 1.2 3 2.7V14c0 1.5-1.3 2.7-3 2.7s-3-1.2-3-2.7V8.7c0-1.5 1.3-2.7 3-2.7z" />
+                </svg>
+              </div>
+              <div>
+                <h2 class="card-title">Valkey</h2>
+                <p class="card-desc">Совместим с Redis: ACL-пользователь и пароль; Redis Insight за HTTP Basic.</p>
+              </div>
+            </div>
+            <div class="actions">
+              <a class="btn btn-primary" href="valkey-insight/">Открыть Redis Insight</a>
+              <a class="btn btn-ghost" href="https://valkey.io/topics/introduction/" rel="noopener noreferrer"
+                target="_blank">Документация</a>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="conn-grid">
+              <div class="copy-stack__segment copy-stack__segment--host">
+                <div class="copy-label">С хоста (db.local)</div>
+                <div class="copy-block">
+                  redis://valkey:valkey_local@db.local:6379</div>
+              </div>
+              <div class="copy-stack__segment copy-stack__segment--docker">
+                <div class="copy-label">Контейнер в сети databases_net</div>
+                <div class="copy-docker-shell">
+                  <div class="copy-block">
+                    redis://valkey:valkey_local@valkey:6379</div>
+                </div>
+              </div>
+            </div>
+            <div class="copy-stack__segment copy-stack__segment--mcp">
+              <div class="copy-label">Cursor MCP (~/.cursor/mcp.json)</div>
+              <p class="mcp-hint">MCP в Docker (Redis MCP Server); <code>REDIS_HOST</code> —
+                <strong>host.docker.internal</strong>, пользователь ACL <strong>valkey</strong> (не default).</p>
+              <pre class="copy-block copy-block--mcp-json"><code>"valkey-local": {
+  "command": "docker",
+  "args": [
+    "run", "-i", "--rm",
+    "--add-host=host.docker.internal:host-gateway",
+    "-e", "REDIS_HOST", "-e", "REDIS_PORT", "-e", "REDIS_USERNAME", "-e", "REDIS_PWD",
+    "mcp/redis:latest"
+  ],
+  "env": {
+    "REDIS_HOST": "host.docker.internal",
+    "REDIS_PORT": "6379",
+    "REDIS_USERNAME": "valkey",
+    "REDIS_PWD": "valkey_local"
+  }
+},</code></pre>
+            </div>
+          </div>
+        </article>
+        </div>
+      </section>
+
+      <section class="net-panel" aria-label="Подключение контейнеров к сети databases_net">
+        <h3>Сеть <code style="font-family: var(--mono); font-size: 0.92em;">databases_net</code></h3>
+        <p>Чтобы из своего контейнера достучаться до СУБД по именам выше, подключите сервис к внешней сети этого стека.
+          Сервер <code>MCP_DOCKER</code> (Docker MCP Toolkit) описан в README репозитория — он не привязан к одной СУБД.
+        </p>
+        <div class="copy-label">Фрагмент docker-compose.yml</div>
+        <pre class="copy-block"><code>services:
+  app:
+    networks:
+      - databases_net
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
+      MONGODB_URI: mongodb://admin:admin@mongodb:27017/?authSource=admin
+      ELASTICSEARCH_URL: http://elastic:elastic_local@elasticsearch:9200
+      REDIS_URL: redis://valkey:valkey_local@valkey:6379
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: qdrant_local
+
+networks:
+  databases_net:
+    external: true</code></pre>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>Креды, домен <code>db.local</code>, hosts и порты — в README репозитория <strong>databases</strong>.</span>
+    </footer>
+  </div>
+  <script>
+    (function () {
+      var COPY_BTN_SVG =
+        '<svg class="copy-btn__icon" width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/></svg>';
+      var COPY_OK_SVG =
+        '<svg class="copy-btn__icon" width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+      function esc(s) {
+        if (s == null || s === '') return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+      function span(cls, t) {
+        return '<span class="' + cls + '">' + esc(t) + '</span>';
+      }
+      function highlightQuery(q) {
+        if (!q) return '';
+        return q.split('&').map(function (pair) {
+          var i = pair.indexOf('=');
+          if (i === -1) return esc(pair);
+          return span('hl-qkey', pair.slice(0, i)) + span('hl-delim', '=') + span('hl-qval', pair.slice(i + 1));
+        }).join(span('hl-delim', '&'));
+      }
+      function highlightJdbc(t) {
+        var m = t.match(/^(jdbc)(:)(postgresql)(:\/\/)([^:/?#]+)(:)(\d+)(\/)([^\?]+)(\?)(.+)$/i);
+        if (!m) return esc(t);
+        return (
+          span('hl-jdbc', m[1]) +
+          span('hl-delim', m[2]) +
+          span('hl-scheme', m[3]) +
+          span('hl-delim', m[4]) +
+          span('hl-host', m[5]) +
+          span('hl-delim', m[6]) +
+          span('hl-port', m[7]) +
+          span('hl-delim', m[8]) +
+          span('hl-path', m[9]) +
+          span('hl-delim', m[10]) +
+          highlightQuery(m[11])
+        );
+      }
+      function highlightHttpUrl(t) {
+        var m = t.match(/^(https?)(:\/\/)([^/\s?#]+)(?::(\d+))?(\/\S*)?$/i);
+        if (!m) return esc(t);
+        var out =
+          span('hl-scheme', m[1]) +
+          span('hl-delim', m[2]) +
+          span('hl-host', m[3]);
+        if (m[4]) out += span('hl-delim', ':') + span('hl-port', m[4]);
+        if (m[5]) out += span('hl-path', m[5]);
+        return out;
+      }
+      function highlightSqlStyleUri(t) {
+        var qi = t.indexOf('?');
+        var head = qi >= 0 ? t.slice(0, qi) : t;
+        var query = qi >= 0 ? t.slice(qi + 1) : '';
+        var m = head.match(/^(\w+)(:\/\/)((?:[^@]+)@)?([^:/?#]+)(?::(\d+))?(\/.*)?$/);
+        if (!m) return esc(t);
+        var out =
+          span('hl-scheme', m[1]) +
+          span('hl-delim', m[2]);
+        if (m[3]) {
+          var cred = m[3].replace(/@$/, '');
+          out += span('hl-user', cred) + span('hl-delim', '@');
+        }
+        out += span('hl-host', m[4]);
+        if (m[5]) out += span('hl-delim', ':') + span('hl-port', m[5]);
+        if (m[6]) out += span('hl-path', m[6]);
+        if (query) out += span('hl-delim', '?') + highlightQuery(query);
+        return out;
+      }
+      function highlightConn(t) {
+        t = String(t).trim();
+        if (t.startsWith('jdbc:')) return highlightJdbc(t);
+        if (/^https?:\/\//i.test(t)) return highlightHttpUrl(t);
+        if (/^\w+:\/\//.test(t)) return highlightSqlStyleUri(t);
+        return esc(t);
+      }
+      function highlightYamlValue(val) {
+        val = String(val).trim();
+        if (!val) return '';
+        if (/^(true|false)$/i.test(val)) return span('hl-yaml-bool', val);
+        if (/^\w+:\/\//.test(val)) return highlightConn(val);
+        return span('hl-yaml-val', val);
+      }
+      function highlightYaml(text) {
+        return text.split('\n').map(function (line) {
+          var mIndent = line.match(/^(\s*)(.*)$/);
+          var ind = mIndent[1];
+          var rest = mIndent[2];
+          if (!rest) return esc(ind);
+          var listM = rest.match(/^(-\s+)(.+)$/);
+          if (listM) {
+            return esc(ind) + span('hl-delim', listM[1]) + highlightYamlValue(listM[2]);
+          }
+          var kv = rest.match(/^([A-Za-z_][\w]*)(\s*:\s*)(.*)$/);
+          if (kv) {
+            return (
+              esc(ind) +
+              span('hl-yaml-key', kv[1]) +
+              span('hl-delim', kv[2]) +
+              highlightYamlValue(kv[3])
+            );
+          }
+          return esc(line);
+        }).join('<br>');
+      }
+
+      /** Подсветка JSON для блоков MCP (копирование — сырой текст в dataset.copyPlain). */
+      function highlightJson(raw) {
+        var i = 0;
+        var len = raw.length;
+        var out = '';
+        while (i < len) {
+          var c = raw[i];
+          if (c === '\r') {
+            if (raw[i + 1] === '\n') {
+              out += esc('\r\n');
+              i += 2;
+            } else {
+              out += esc(c);
+              i++;
+            }
+            continue;
+          }
+          if (c === '\n') {
+            out += esc(c);
+            i++;
+            continue;
+          }
+          if (c === ' ' || c === '\t') {
+            var ws0 = i;
+            while (i < len && (raw[i] === ' ' || raw[i] === '\t')) i++;
+            out += esc(raw.slice(ws0, i));
+            continue;
+          }
+          if ('{}[],:'.indexOf(c) >= 0) {
+            out += span('hl-json-punct', c);
+            i++;
+            continue;
+          }
+          if (c === '"') {
+            var strStart = i;
+            i++;
+            while (i < len) {
+              if (raw[i] === '\\') {
+                i += 2;
+                continue;
+              }
+              if (raw[i] === '"') {
+                i++;
+                break;
+              }
+              i++;
+            }
+            var fullStr = raw.slice(strStart, i);
+            var j = i;
+            while (j < len && /\s/.test(raw[j])) j++;
+            var isKey = j < len && raw[j] === ':';
+            out += span(isKey ? 'hl-json-key' : 'hl-json-string', fullStr);
+            continue;
+          }
+          if (c === '-' || (c >= '0' && c <= '9')) {
+            var n0 = i;
+            if (c === '-') i++;
+            while (i < len && raw[i] >= '0' && raw[i] <= '9') i++;
+            if (i < len && raw[i] === '.') {
+              i++;
+              while (i < len && raw[i] >= '0' && raw[i] <= '9') i++;
+            }
+            if (i < len && (raw[i] === 'e' || raw[i] === 'E')) {
+              i++;
+              if (i < len && (raw[i] === '+' || raw[i] === '-')) i++;
+              while (i < len && raw[i] >= '0' && raw[i] <= '9') i++;
+            }
+            out += span('hl-json-number', raw.slice(n0, i));
+            continue;
+          }
+          var tail = raw.slice(i);
+          var kw = tail.match(/^(true|false|null)(?![\w])/);
+          if (kw) {
+            out += span('hl-json-keyword', kw[1]);
+            i += kw[1].length;
+            continue;
+          }
+          out += esc(c);
+          i++;
+        }
+        return out;
+      }
+
+      function run() {
+        document.querySelectorAll('div.copy-block').forEach(function (el) {
+          if (el.dataset.hlDone) return;
+          var raw = el.textContent.trim();
+          if (!raw) return;
+          el.dataset.hlDone = '1';
+          el.innerHTML = highlightConn(raw);
+        });
+        document.querySelectorAll('pre.copy-block').forEach(function (pre) {
+          if (pre.dataset.hlDone) return;
+          var code = pre.querySelector('code');
+          if (!code) return;
+          var raw = code.textContent;
+          if (!raw.trim()) return;
+          pre.dataset.hlDone = '1';
+          pre.dataset.copyPlain = raw.replace(/\r\n/g, '\n');
+          if (pre.classList.contains('copy-block--mcp-json')) {
+            code.innerHTML = highlightJson(raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n'));
+            return;
+          }
+          if (/^\s*services\s*:/m.test(raw)) {
+            code.innerHTML = highlightYaml(raw);
+          } else {
+            code.innerHTML = raw
+              .split('\n')
+              .map(function (ln) {
+                var t = ln.trim();
+                if (!t) return '';
+                return '<span class="hl-line">' + highlightHttpUrl(t) + '</span>';
+              })
+              .filter(Boolean)
+              .join('');
+          }
+        });
+      }
+
+      function copyPlainText(text, btn) {
+        function done() {
+          btn.disabled = true;
+          btn.setAttribute('aria-label', 'Скопировано');
+          btn.setAttribute('title', 'Скопировано');
+          btn.innerHTML = COPY_OK_SVG;
+          clearTimeout(btn._copyReset);
+          btn._copyReset = setTimeout(function () {
+            btn.innerHTML = COPY_BTN_SVG;
+            btn.setAttribute('aria-label', 'Скопировать в буфер обмена');
+            btn.setAttribute('title', 'Скопировать');
+            btn.disabled = false;
+          }, 2000);
+        }
+        function fallback() {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          ta.style.top = '0';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          try {
+            if (document.execCommand('copy')) done();
+          } catch (e) {}
+          document.body.removeChild(ta);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(fallback);
+        } else {
+          fallback();
+        }
+      }
+
+      function setupCopyControls() {
+        document.querySelectorAll('div.copy-block, pre.copy-block').forEach(function (target) {
+          if (target.dataset.copyUi) return;
+          target.dataset.copyUi = '1';
+          var row = document.createElement('div');
+          row.className = 'copy-row';
+          target.parentNode.insertBefore(row, target);
+          row.appendChild(target);
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'copy-btn';
+          btn.innerHTML = COPY_BTN_SVG;
+          btn.setAttribute('aria-label', 'Скопировать в буфер обмена');
+          btn.setAttribute('title', 'Скопировать');
+          row.appendChild(btn);
+          btn.addEventListener('click', function () {
+            var text;
+            if (target.tagName === 'PRE' && target.dataset.copyPlain) {
+              text = target.dataset.copyPlain;
+            } else if (target.tagName === 'PRE') {
+              var c = target.querySelector('code');
+              text = c ? c.textContent : target.textContent;
+            } else {
+              text = target.textContent;
+            }
+            copyPlainText(String(text).trim(), btn);
+          });
+        });
+      }
+
+      function syncAdminPrimaryButtonWidths() {
+        var nodes = document.querySelectorAll('.actions .btn-primary');
+        if (!nodes.length) return;
+        var narrow = window.matchMedia('(max-width: 639px)').matches;
+        if (narrow) {
+          nodes.forEach(function (el) {
+            el.style.minWidth = '';
+          });
+          return;
+        }
+        var max = 0;
+        nodes.forEach(function (el) {
+          el.style.minWidth = '';
+          max = Math.max(max, el.getBoundingClientRect().width);
+        });
+        var px = max + 'px';
+        nodes.forEach(function (el) {
+          el.style.minWidth = px;
+        });
+      }
+
+      function setupDbTabs() {
+        var root = document.querySelector('.db-tabs');
+        if (!root) return;
+        var tablist = root.querySelector('[role="tablist"]');
+        var tabs = Array.prototype.slice.call(root.querySelectorAll('[role="tab"]'));
+        if (!tabs.length) return;
+        var panels = tabs.map(function (t) {
+          var id = t.getAttribute('aria-controls');
+          return id ? document.getElementById(id) : null;
+        });
+
+        function selectTab(index) {
+          if (index < 0) index = tabs.length - 1;
+          if (index >= tabs.length) index = 0;
+          tabs.forEach(function (tab, i) {
+            var selected = i === index;
+            tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+            tab.setAttribute('tabindex', selected ? '0' : '-1');
+            if (panels[i]) {
+              if (selected) panels[i].removeAttribute('hidden');
+              else panels[i].setAttribute('hidden', '');
+            }
+          });
+          syncAdminPrimaryButtonWidths();
+        }
+
+        tabs.forEach(function (tab, i) {
+          tab.addEventListener('click', function () {
+            selectTab(i);
+            tab.focus();
+          });
+        });
+
+        if (tablist) {
+          tablist.addEventListener('keydown', function (e) {
+            var i = tabs.indexOf(document.activeElement);
+            if (i < 0) return;
+            if (e.key === 'ArrowRight') {
+              e.preventDefault();
+              var next = (i + 1) % tabs.length;
+              selectTab(next);
+              tabs[next].focus();
+            } else if (e.key === 'ArrowLeft') {
+              e.preventDefault();
+              var prev = (i - 1 + tabs.length) % tabs.length;
+              selectTab(prev);
+              tabs[prev].focus();
+            } else if (e.key === 'Home') {
+              e.preventDefault();
+              selectTab(0);
+              tabs[0].focus();
+            } else if (e.key === 'End') {
+              e.preventDefault();
+              selectTab(tabs.length - 1);
+              tabs[tabs.length - 1].focus();
+            }
+          });
+        }
+      }
+
+      function boot() {
+        run();
+        setupCopyControls();
+        setupDbTabs();
+        syncAdminPrimaryButtonWidths();
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(syncAdminPrimaryButtonWidths);
+        }
+        var resizeTimer;
+        window.addEventListener('resize', function () {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(syncAdminPrimaryButtonWidths, 120);
+        });
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+      else boot();
+    })();
+  </script>
+</body>
+
+</html>

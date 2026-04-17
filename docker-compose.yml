@@ -1,0 +1,262 @@
+# Переменные — из .env (шаблон: .env.example). СУБД: 5432, 27017, 6379, 9200, 6333; портал: PORTAL_HOST_PORT → http://db.local/ (hosts — README).
+networks:
+  databases:
+    name: databases_net
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: databases-postgres
+    networks:
+      - databases
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: databases-pgadmin
+    networks:
+      - databases
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@local.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  mongodb:
+    image: mongo:7
+    container_name: databases-mongodb
+    networks:
+      - databases
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-admin}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mongo-express:
+    image: mongo-express:1
+    container_name: databases-mongo-express
+    networks:
+      - databases
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:-admin}:${MONGO_ROOT_PASSWORD:-admin}@mongodb:27017/?authSource=admin
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_BASICAUTH_USERNAME:-admin}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_BASICAUTH_PASSWORD:-admin}
+      ME_CONFIG_SITE_BASEURL: /mongo/
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    container_name: databases-elasticsearch
+    networks:
+      - databases
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_local}
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    mem_limit: 1g
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf -u elastic:${ELASTIC_PASSWORD:-elastic_local} http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 40s
+
+  es-set-kibana-password:
+    image: curlimages/curl:8.11.1
+    container_name: databases-es-set-kibana-password
+    networks:
+      - databases
+    environment:
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-elastic_local}
+      KIBANA_SYSTEM_PASSWORD: ${KIBANA_SYSTEM_PASSWORD:-kibana_local}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          if curl -sf -u "elastic:$$ELASTIC_PASSWORD" -X POST "http://elasticsearch:9200/_security/user/kibana_system/_password" \
+            -H "Content-Type: application/json" \
+            -d "{\"password\":\"$$KIBANA_SYSTEM_PASSWORD\"}"; then
+            echo "kibana_system password set"
+            exit 0
+          fi
+          echo "retry $$i..."
+          sleep 3
+        done
+        exit 1
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.2
+    container_name: databases-kibana
+    networks:
+      - databases
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      ELASTICSEARCH_USERNAME: kibana_system
+      ELASTICSEARCH_PASSWORD: ${KIBANA_SYSTEM_PASSWORD:-kibana_local}
+      SERVER_BASEPATH: /kibana
+      SERVER_REWRITEBASEPATH: "true"
+      SERVER_PUBLICBASEURL: ${KIBANA_PUBLIC_URL:-http://db.local/kibana}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf http://127.0.0.1:5601/kibana/api/status >/dev/null || curl -sf http://127.0.0.1:5601/api/status >/dev/null",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 120s
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      es-set-kibana-password:
+        condition: service_completed_successfully
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: databases-valkey
+    networks:
+      - databases
+    ports:
+      - "6379:6379"
+    command:
+      - valkey-server
+      - --appendonly
+      - "yes"
+      - --user
+      - default
+      - "off"
+      - --user
+      - ${VALKEY_USER:-valkey}
+      - "on"
+      - ">${VALKEY_PASSWORD:-valkey_local}"
+      - "~*"
+      - "&*"
+      - "+@all"
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "valkey-cli",
+          "--user",
+          "${VALKEY_USER:-valkey}",
+          "-a",
+          "${VALKEY_PASSWORD:-valkey_local}",
+          "ping",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redisinsight:
+    image: redis/redisinsight:2.70
+    container_name: databases-redisinsight
+    networks:
+      - databases
+    environment:
+      RI_PROXY_PATH: /valkey-insight/
+      RITRUSTEDORIGINS: ${PORTAL_PUBLIC_ORIGIN:-http://db.local}
+      RIPORT: "5540"
+    volumes:
+      - redisinsight_data:/data
+    depends_on:
+      valkey:
+        condition: service_healthy
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.4
+    container_name: databases-qdrant
+    networks:
+      - databases
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-qdrant_local}
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test:
+        ["CMD", "/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/6333"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  portal:
+    image: nginx:1.27-alpine
+    container_name: databases-portal
+    networks:
+      - databases
+    ports:
+      - "${PORTAL_HOST_PORT:-80}:80"
+    volumes:
+      - ./proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./proxy/html:/usr/share/nginx/html:ro
+      - ./proxy/redisinsight.htpasswd:/etc/nginx/redisinsight.htpasswd:ro
+    depends_on:
+      pgadmin:
+        condition: service_started
+      mongo-express:
+        condition: service_started
+      kibana:
+        condition: service_healthy
+      redisinsight:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  mongo_data:
+  es_data:
+  pgadmin_data:
+  valkey_data:
+  redisinsight_data:
+  qdrant_data:
