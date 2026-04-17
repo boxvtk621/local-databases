@@ -1,7 +1,11 @@
-# Переменные — из .env (шаблон: .env.example). СУБД: 5432, 27017, 6379, 9200, 6333; портал: PORTAL_HOST_PORT → http://db.local/ (hosts — README).
+ # Переменные — из .env (шаблон: .env.example). СУБД: 5432, 27017, 6379, 9200, 6333; портал: PORTAL_HOST_PORT → http://db.local/ (hosts — README).
 networks:
   databases:
     name: databases_net
+
+# Адрес для docker logging driver: демон резолвит с хоста, не из сети контейнеров — localhost + опубликованный порт fluentd.
+x-fluentd-logging-options: &fluentd-logging-options
+  fluentd-address: 127.0.0.1:24224
 
 services:
   postgres:
@@ -13,10 +17,18 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      # Init: postgres/docker-entrypoint-initdb.d/02-airflow-and-datafeeder.sh
+      AIRFLOW_METADATA_USER: ${AIRFLOW_METADATA_USER:-airflow}
+      AIRFLOW_METADATA_PASSWORD: ${AIRFLOW_METADATA_PASSWORD:-airflow}
+      AIRFLOW_METADATA_DB: ${AIRFLOW_METADATA_DB:-airflow}
+      FEED_POSTGRES_USER: ${FEED_POSTGRES_USER:-datafeeder}
+      FEED_POSTGRES_PASSWORD: ${FEED_POSTGRES_PASSWORD:-datafeeder}
+      FEED_POSTGRES_DB: ${FEED_POSTGRES_DB:-datafeeder}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test:
         [
@@ -26,6 +38,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: fluentd
+      options:
+        <<: *fluentd-logging-options
+        tag: db.postgres
+    depends_on:
+      fluentd:
+        condition: service_healthy
 
   pgadmin:
     image: dpage/pgadmin4:8
@@ -62,6 +82,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: fluentd
+      options:
+        <<: *fluentd-logging-options
+        tag: db.mongodb
+    depends_on:
+      fluentd:
+        condition: service_healthy
 
   mongo-express:
     image: mongo-express:1
@@ -86,6 +114,7 @@ services:
     environment:
       - discovery.type=single-node
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-elastic_local}
+      - xpack.security.http.ssl.enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "9200:9200"
@@ -102,6 +131,31 @@ services:
       timeout: 10s
       retries: 12
       start_period: 40s
+
+  fluentd:
+    build:
+      context: ./fluentd
+      dockerfile: Dockerfile
+    container_name: databases-fluentd
+    networks:
+      - databases
+    ports:
+      - "127.0.0.1:24224:24224"
+    environment:
+      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-elastic_local}
+    volumes:
+      - ./fluentd/conf/fluent.conf:/fluentd/etc/fluent.conf:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/24224'"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+    mem_limit: 256m
 
   es-set-kibana-password:
     image: curlimages/curl:8.11.1
@@ -196,6 +250,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: fluentd
+      options:
+        <<: *fluentd-logging-options
+        tag: db.valkey
+    depends_on:
+      fluentd:
+        condition: service_healthy
 
   redisinsight:
     image: redis/redisinsight:2.70
@@ -230,6 +292,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    logging:
+      driver: fluentd
+      options:
+        <<: *fluentd-logging-options
+        tag: db.qdrant
+    depends_on:
+      fluentd:
+        condition: service_healthy
 
   portal:
     image: nginx:1.27-alpine

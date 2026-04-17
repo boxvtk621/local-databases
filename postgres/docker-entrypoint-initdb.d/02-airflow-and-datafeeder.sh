@@ -1,0 +1,10 @@
+#!/bin/sh
+# Создаёт роли и БД для Apache Airflow (метаданные) и DataFeeder (фид).
+# Выполняется только при первом создании volume Postgres.
+set -eu
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<EOSQL
+CREATE USER ${AIRFLOW_METADATA_USER} WITH PASSWORD '${AIRFLOW_METADATA_PASSWORD}';
+CREATE DATABASE ${AIRFLOW_METADATA_DB} OWNER ${AIRFLOW_METADATA_USER};
+CREATE USER ${FEED_POSTGRES_USER} WITH PASSWORD '${FEED_POSTGRES_PASSWORD}';
+CREATE DATABASE ${FEED_POSTGRES_DB} OWNER ${FEED_POSTGRES_USER};
+EOSQL

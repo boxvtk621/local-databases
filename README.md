@@ -14,7 +14,7 @@
 |-----------|---------------|---------------|
 | **PostgreSQL** 16 | 5432 | pgAdmin — `http://db.local/pgadmin/` |
 | **MongoDB** 7 | 27017 | mongo-express — `http://db.local/mongo/` |
-| **Elasticsearch** 8.12 | 9200 | Kibana — `http://db.local/kibana/` |
+| **Elasticsearch** 8.12 | 9200 | Kibana — `http://db.local/kibana/` (логи СУБД — см. [ниже](#database-logs-fluentd)) |
 | **Valkey** 8 | 6379 | Redis Insight — `http://db.local/valkey-insight/` (Basic у nginx) |
 | **Qdrant** 1.13 | 6333 | Dashboard — `http://db.local:6333/dashboard` (не за nginx :80) |
 | **Портал** | см. `PORTAL_HOST_PORT` в [`.env.example`](.env.example) (по умолчанию **80**) | `http://db.local/` (или с портом, если не 80) |
@@ -86,7 +86,7 @@ flowchart LR
 - [Другие контейнеры](#external-compose)
 - [db.local](#db-local)
 - [Портал nginx](#web-portal)
-- [PostgreSQL](#postgresql) · [MongoDB](#mongodb) · [Elasticsearch](#elasticsearch) · [Qdrant](#qdrant) · [Valkey](#valkey)
+- [PostgreSQL](#postgresql) · [MongoDB](#mongodb) · [Elasticsearch](#elasticsearch) · [Логи СУБД (Fluentd → Elasticsearch)](#database-logs-fluentd) · [Qdrant](#qdrant) · [Valkey](#valkey)
 
 ---
 
@@ -336,6 +336,65 @@ X-Pack: Basic Auth, **`elastic`** / **`elastic_local`** (переменная `E
 | Хост | `http://elastic:elastic_local@db.local:9200` |
 
 **Kibana:** `http://db.local/kibana/` — вход `elastic` / `elastic_local`. В контейнере: `http://kibana:5601/kibana/`.
+
+<h2 id="database-logs-fluentd">Логи СУБД (Fluentd → Elasticsearch)</h2>
+
+Сервис **`fluentd`** собирает **stdout/stderr** контейнеров PostgreSQL, MongoDB, Valkey и Qdrant и пишет их в **Elasticsearch** отдельными индексами (суточная ротация). Пароль к ES тот же, что у пользователя **`elastic`**: переменная **`ELASTIC_PASSWORD`** в **`.env`** (шаблон — [`.env.example`](.env.example)) и в [`docker-compose.yml`](docker-compose.yml).
+
+### Имена индексов
+
+Префиксы выбраны так, чтобы **не** совпадать со встроенным шаблоном Elastic для индексов `logs-*` (Fleet / Observability): иначе записи уходят в управляемые data streams и с ними неудобно работать вручную.
+
+| СУБД | Шаблон индекса в Elasticsearch |
+|------|--------------------------------|
+| PostgreSQL | `db-logs-postgres-*` |
+| MongoDB | `db-logs-mongodb-*` |
+| Valkey | `db-logs-valkey-*` |
+| Qdrant | `db-logs-qdrant-*` |
+
+Пример полного имени: `db-logs-postgres-2026.04.17`.
+
+### Просмотр в Kibana
+
+1. Откройте **`http://db.local/kibana/`** (пользователь **`elastic`**, пароль из **`ELASTIC_PASSWORD`**, по умолчанию `elastic_local`).
+2. **Stack Management** → **Data views** → **Create data view**.
+3. Укажите имя (например `DB logs`) и **Index pattern**: `db-logs-*` — все четыре источника сразу, или отдельно `db-logs-postgres-*` и т.д.
+4. Выберите поле времени **`@timestamp`** (если Kibana предложит выбор).
+5. В **Discover** выберите созданное представление и фильтруйте по полям **`log`**, **`container_name`**, **`source`** (`stdout` / `stderr`).
+
+Готовый **Data view** `db-logs-*` (имя **DB logs (all)**), runtime-поле **`db_kind`** (postgres / mongodb / valkey / qdrant), сохранённые поиски и дашборд **Local DB — log health** можно импортировать из [`kibana/db-logs-dashboard.ndjson`](kibana/db-logs-dashboard.ndjson): **Stack Management** → **Saved Objects** → **Import**, либо с хоста:
+
+```bash
+./kibana/import-dashboard.sh
+```
+
+Переменные: `KIBANA_URL` (по умолчанию `http://127.0.0.1/kibana`), `ELASTIC_USER` / `ELASTIC_PASSWORD`. После импорта откройте **Dashboard** → **Local DB — log health** (графики — классические Visualize; при необходимости их можно пересобрать в Lens в UI).
+
+### Запросы в Dev Tools
+
+**Management** → **Dev Tools** (или **Console** в зависимости от версии Kibana):
+
+```http
+GET db-logs-postgres-*/_search
+{
+  "size": 10,
+  "sort": [{ "@timestamp": "desc" }]
+}
+```
+
+С хоста (подставьте пароль из `.env`):
+
+```bash
+curl -s -u "elastic:${ELASTIC_PASSWORD:-elastic_local}" \
+  "http://db.local:9200/db-logs-mongodb-*/_search?pretty&size=5"
+```
+
+### Как это устроено в Compose
+
+- Образ и конфиг: каталог [`fluentd/`](fluentd/) ([`fluentd/Dockerfile`](fluentd/Dockerfile), [`fluentd/conf/fluent.conf`](fluentd/conf/fluent.conf)).
+- Сервисы БД используют драйвер логирования **`fluentd`** и теги **`db.postgres`**, **`db.mongodb`**, **`db.valkey`**, **`db.qdrant`**.
+- Адрес **`fluentd-address: 127.0.0.1:24224`**: логирование подключается **к демону Docker с хоста**, поэтому имя сервиса `fluentd` в этом адресе не работает; порт **24224** проброшен на **localhost** только у сервиса `fluentd`.
+- СУБД стартуют после **готовности Fluentd** (healthcheck на порт 24224), чтобы первые строки лога не терялись.
 
 ---
 
